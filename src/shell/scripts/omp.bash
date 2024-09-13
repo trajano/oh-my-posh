@@ -64,51 +64,44 @@ function set_poshcontext() {
 }
 
 function _omp_print_primary() {
-    # Avoid unexpected expansions.
+    # Avoid unexpected expansions
     shopt -u promptvars
 
-    local prompt
+    local raw_prompt
     if shopt -oq posix; then
-        # Disable in POSIX mode.
-        prompt='[NOTICE: Oh My Posh prompt is not supported in POSIX mode]\n\u@\h:\w\$ '
+        raw_prompt='[NOTICE: Oh My Posh prompt is not supported in POSIX mode]\n\u@\h:\w\$ '
     else
-        prompt=$("$_omp_executable" print primary --shell=bash --shell-version="$BASH_VERSION" --status="$_omp_status_cache" --pipestatus="${_omp_pipestatus_cache[*]}" --execution-time="$_omp_elapsed" --stack-count="$_omp_stack_count" --no-status="$_omp_no_exit_code" --terminal-width="${COLUMNS-0}" | tr -d '\0')
+        # Fetch the prompt from Oh My Posh, keeping \[ and \] intact
+        raw_prompt=$("$_omp_executable" print primary --shell=bash --shell-version="$BASH_VERSION" \
+            --status="$_omp_status_cache" \
+            --pipestatus="${_omp_pipestatus_cache[*]}" \
+            --execution-time="$_omp_elapsed" \
+            --stack-count="$_omp_stack_count" \
+            --no-status="$_omp_no_exit_code" \
+            --terminal-width="${COLUMNS-0}" | tr -d '\0')
     fi
 
-    # Strip \[ and \] markers, retain escape sequences
-    display_prompt=$(echo "$prompt" | sed 's/\\\[//g; s/\\\]//g')
-
-    # Display the prompt with ANSI sequences intact
-    printf "%b" "$display_prompt"
-
-    # Allow command substitution in PS0.
-    shopt -s promptvars
+    # Output the raw prompt with \[ and \] intact
+    echo "$raw_prompt"
 }
 
 function _omp_print_secondary() {
-    # Avoid unexpected expansions.
+    # Avoid unexpected expansions
     shopt -u promptvars
 
-    local prompt
+    local raw_prompt
     if shopt -oq posix; then
-        # Disable in POSIX mode.
-        prompt='> '
+        raw_prompt='> '
     else
-        prompt="$_omp_secondary_prompt"
+        raw_prompt="$_omp_secondary_prompt"
     fi
 
-    # Strip \[ and \] markers, retain escape sequences
-    display_prompt=$(echo "$prompt" | sed 's/\\\[//g; s/\\\]//g')
-
-    # Display the prompt with ANSI sequences intact
-    printf "%b" "$display_prompt"
-
-    # Allow command substitution in PS0.
-    shopt -s promptvars
+    # Output the raw prompt with \[ and \] intact
+    echo "$raw_prompt"
 }
-
 function _omp_hook() {
-    _omp_status_cache=$? _omp_pipestatus_cache=("${PIPESTATUS[@]}")
+    _omp_status_cache=$?
+    _omp_pipestatus_cache=("${PIPESTATUS[@]}")
 
     if [[ ${#BP_PIPESTATUS[@]} -ge ${#_omp_pipestatus_cache[@]} ]]; then
         _omp_pipestatus_cache=("${BP_PIPESTATUS[@]}")
@@ -118,7 +111,7 @@ function _omp_hook() {
 
     if [[ $_omp_start_time ]]; then
         local omp_now=$("$_omp_executable" get millis --shell=bash)
-        _omp_elapsed=$((omp_now - _omp_start_time))
+        _omp_elapsed=$((omp_now - $_omp_start_time))
         _omp_start_time=""
         _omp_no_exit_code="false"
     fi
@@ -130,8 +123,17 @@ function _omp_hook() {
     set_poshcontext
     _omp_set_cursor_position
 
-    PS1='$(_omp_print_primary)'
-    PS2='$(_omp_print_secondary)'
+    # Capture the primary prompt and escape backslashes unless they are followed by [ or ]
+    local primary_prompt="$(_omp_print_primary)"
+    local safe_primary_prompt=$(echo "$primary_prompt" | sed 's/\\\([^\[\]]\)/\\\\\1/g')
+
+    PS1="$safe_primary_prompt"
+
+    # Capture the secondary prompt and escape backslashes unless they are followed by [ or ]
+    local secondary_prompt="$(_omp_print_secondary)"
+    local safe_secondary_prompt=$(echo "$secondary_prompt" | sed 's/\\\([^\[\]]\)/\\\\\1/g')
+
+    PS2="$safe_secondary_prompt"
 
     return $_omp_status_cache
 }

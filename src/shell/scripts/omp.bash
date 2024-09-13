@@ -74,7 +74,12 @@ function _omp_print_primary() {
     else
         prompt=$("$_omp_executable" print primary --shell=bash --shell-version="$BASH_VERSION" --status="$_omp_status_cache" --pipestatus="${_omp_pipestatus_cache[*]}" --execution-time="$_omp_elapsed" --stack-count="$_omp_stack_count" --no-status="$_omp_no_exit_code" --terminal-width="${COLUMNS-0}" | tr -d '\0')
     fi
-    printf "%b" "$prompt"
+
+    # Strip \[ and \] markers, retain escape sequences
+    display_prompt=$(echo "$prompt" | sed 's/\\\[//g; s/\\\]//g')
+
+    # Display the prompt with ANSI sequences intact
+    printf "%b" "$display_prompt"
 
     # Allow command substitution in PS0.
     shopt -s promptvars
@@ -84,12 +89,19 @@ function _omp_print_secondary() {
     # Avoid unexpected expansions.
     shopt -u promptvars
 
+    local prompt
     if shopt -oq posix; then
         # Disable in POSIX mode.
-        echo '> '
+        prompt='> '
     else
-        echo "${_omp_secondary_prompt@P}"
+        prompt="$_omp_secondary_prompt"
     fi
+
+    # Strip \[ and \] markers, retain escape sequences
+    display_prompt=$(echo "$prompt" | sed 's/\\\[//g; s/\\\]//g')
+
+    # Display the prompt with ANSI sequences intact
+    printf "%b" "$display_prompt"
 
     # Allow command substitution in PS0.
     shopt -s promptvars

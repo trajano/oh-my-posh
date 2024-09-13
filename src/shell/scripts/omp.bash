@@ -74,7 +74,7 @@ function _omp_print_primary() {
     else
         prompt=$("$_omp_executable" print primary --shell=bash --shell-version="$BASH_VERSION" --status="$_omp_status_cache" --pipestatus="${_omp_pipestatus_cache[*]}" --execution-time="$_omp_elapsed" --stack-count="$_omp_stack_count" --no-status="$_omp_no_exit_code" --terminal-width="${COLUMNS-0}" | tr -d '\0')
     fi
-    echo "${prompt@P}"
+    printf "%b" "$prompt"
 
     # Allow command substitution in PS0.
     shopt -s promptvars
